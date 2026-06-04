@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5a623">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>RDO – Relatório Diário de Obra</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-logo-wrap">
+    <div class="header-icon" id="headerIcon">RD</div>
+    <div class="header-titles">
+      <h1>Relatório <span>Diário</span></h1>
+      <div class="header-sub" id="headerSub">Carregando...</div>
+    </div>
+  </div>
+  <button class="header-logo-btn" onclick="switchTab('config')">⚙️ Config</button>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" data-tab="novo"       onclick="switchTab('novo')">📋 Novo</button>
+  <button class="tab"        data-tab="relatorios"  onclick="switchTab('relatorios')">📁 Relatórios</button>
+  <button class="tab"        data-tab="obras"       onclick="switchTab('obras')">🏗️ Obras</button>
+  <button class="tab"        data-tab="equipes"     onclick="switchTab('equipes')">👥 Equipes</button>
+  <button class="tab"        data-tab="config"      onclick="switchTab('config')">⚙️ Config</button>
+</div>
+
+<!-- ===================== NOVO RDO ===================== -->
+<div id="screen-novo" class="screen active">
+
+  <!-- draft banner -->
+  <div class="draft-banner" id="draftBanner">
+    <div class="draft-title">📝 Rascunho não finalizado encontrado</div>
+    <div id="draftInfo" style="font-size:13px;color:var(--muted)"></div>
+    <div class="draft-actions">
+      <button class="btn btn-primary btn-sm" onclick="loadDraft()">Recuperar</button>
+      <button class="btn btn-secondary btn-sm" onclick="discardDraft()">Descartar</button>
+    </div>
+  </div>
+
+  <!-- autosave indicator -->
+  <div class="autosave-row">
+    <span style="font-size:12px;color:var(--muted)">Preencha os campos abaixo</span>
+    <span class="autosave" id="autosaveIndicator">✔ Rascunho salvo</span>
+  </div>
+
+  <!-- dados gerais -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">📋</span> Dados Gerais</div>
+    <div class="field">
+      <label class="lbl">Obra</label>
+      <select id="selObra" onchange="onObraSelect()">
+        <option value="">— Selecione uma obra —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="lbl">Nome da obra (manual)</label>
+      <input type="text" id="inpObraNome" placeholder="Ex: Faria Lima 1" oninput="scheduleDraft()">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label class="lbl">Data</label>
+        <input type="date" id="inpData" oninput="scheduleDraft()">
+      </div>
+      <div class="field">
+        <label class="lbl">Clima</label>
+        <div class="clima-group">
+          <div class="clima-chip" onclick="selClima(this,'☀️ Ensolarado')">☀️</div>
+          <div class="clima-chip" onclick="selClima(this,'⛅ Nublado')">⛅</div>
+          <div class="clima-chip" onclick="selClima(this,'🌧️ Chuva')">🌧️</div>
+          <div class="clima-chip" onclick="selClima(this,'💨 Vento')">💨</div>
+        </div>
+        <input type="hidden" id="inpClima">
+      </div>
+    </div>
+  </div>
+
+  <!-- equipe -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">👥</span> Equipe</div>
+    <div class="field">
+      <label class="lbl">Carregar equipe salva</label>
+      <select id="selEquipe" onchange="loadEquipeIntoForm()">
+        <option value="">— Selecione uma equipe —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="lbl">Descrição das equipes presentes</label>
+      <input type="text" id="inpEquipesDesc" placeholder="SHE HIDRÁULICA: 3 / ELT ELÉTRICA: 2" oninput="scheduleDraft()">
+    </div>
+    <div class="field">
+      <label class="lbl">Membros</label>
+      <div class="member-list" id="rdoMembers"></div>
+      <button class="btn btn-secondary btn-sm" onclick="addMembro()">+ Membro</button>
+    </div>
+    <div class="field">
+      <label class="lbl">Equipamentos</label>
+      <div class="tag-list" id="equipTags"></div>
+      <div class="add-row">
+        <input type="text" id="inpEquip" placeholder="Ex: Retroescavadeira">
+        <button class="btn btn-secondary btn-sm" onclick="addEquip()">+ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- atividades -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">🔧</span> Atividades Executadas</div>
+    <div class="prog-rows" id="progRows"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addProg()" style="margin-top:8px">+ Atividade</button>
+  </div>
+
+  <!-- pendências -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">⚠️</span> Pendências</div>
+    <div class="pend-rows" id="pendRows"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addPend()" style="margin-top:8px">+ Pendência</button>
+  </div>
+
+  <!-- observações -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">📝</span> Observações</div>
+    <textarea id="inpObs" placeholder="Ocorrências, informações gerais..." oninput="scheduleDraft()"></textarea>
+  </div>
+
+  <!-- fotos -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">📷</span> Fotos</div>
+    <div class="photos-grid" id="photosGrid"></div>
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFiles(event)">
+    <div class="photo-add" onclick="document.getElementById('fileInput').click()">
+      <div class="photo-add-icon">📷</div>
+      <div>Toque para tirar foto ou escolher da galeria</div>
+    </div>
+    <div class="photo-hint">Adicione quantas fotos quiser — cada uma com sua própria descrição</div>
+  </div>
+
+  <!-- botões -->
+  <div class="btn-row">
+    <button class="btn btn-primary btn-full" onclick="salvarRDO()">💾 Salvar Relatório</button>
+    <button class="btn btn-secondary" onclick="clearForm()">🔄 Limpar</button>
+  </div>
+</div>
+
+<!-- ===================== RELATÓRIOS ===================== -->
+<div id="screen-relatorios" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-family:var(--fh);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)" id="relCount"></span>
+  </div>
+  <div id="relList"></div>
+</div>
+
+<!-- ===================== OBRAS ===================== -->
+<div id="screen-obras" class="screen">
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">🏗️</span> <span id="obraFormTitle">Nova Obra</span></div>
+    <input type="hidden" id="editObraId">
+    <div class="field"><label class="lbl">Nome da obra *</label><input type="text" id="obraNome" placeholder="Ex: Faria Lima 2"></div>
+    <div class="field"><label class="lbl">Cliente</label><input type="text" id="obraCliente" placeholder="Nome do cliente"></div>
+    <div class="field"><label class="lbl">Endereço</label><input type="text" id="obraEnd" placeholder="Endereço da obra"></div>
+    <div class="field"><label class="lbl">Observações</label><textarea id="obraObs" placeholder="Informações adicionais..." style="min-height:56px"></textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="salvarObra()">💾 Salvar</button>
+      <button class="btn btn-secondary" onclick="cancelEditObra()">Cancelar</button>
+    </div>
+  </div>
+  <div style="font-family:var(--fh);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:10px" id="obraCount"></div>
+  <div class="saved-list" id="obrasList"></div>
+</div>
+
+<!-- ===================== EQUIPES ===================== -->
+<div id="screen-equipes" class="screen">
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">👥</span> <span id="equipeFormTitle">Nova Equipe</span></div>
+    <input type="hidden" id="editEquipeId">
+    <div class="field"><label class="lbl">Nome da equipe *</label><input type="text" id="equipeNome" placeholder="Ex: SHE Hidráulica"></div>
+    <div class="field">
+      <label class="lbl">Membros</label>
+      <div class="member-list" id="equipeMembersList"></div>
+      <div class="add-row" style="margin-top:6px">
+        <input type="text" id="equipeMemberInput" placeholder="Nome do membro">
+        <button class="btn btn-secondary btn-sm" onclick="addEquipeMember()">+ Add</button>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="salvarEquipe()">💾 Salvar</button>
+      <button class="btn btn-secondary" onclick="cancelEditEquipe()">Cancelar</button>
+    </div>
+  </div>
+  <div style="font-family:var(--fh);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:10px" id="equipeCount"></div>
+  <div class="saved-list" id="equipesList"></div>
+</div>
+
+<!-- ===================== CONFIG ===================== -->
+<div id="screen-config" class="screen">
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">🏢</span> Dados da Empresa</div>
+    <div class="field"><label class="lbl">Nome da empresa</label><input type="text" id="cfgEmpresa" placeholder="Ex: Construtora XYZ"></div>
+    <div class="field"><label class="lbl">Responsável técnico</label><input type="text" id="cfgResp" placeholder="Nome do responsável"></div>
+    <div class="field"><label class="lbl">Cargo</label><input type="text" id="cfgCargo" placeholder="Ex: Engenheiro Civil"></div>
+    <div class="row2">
+      <div class="field"><label class="lbl">Telefone</label><input type="tel" id="cfgTel" placeholder="(11) 99999-9999"></div>
+      <div class="field"><label class="lbl">E-mail</label><input type="email" id="cfgEmail" placeholder="email@empresa.com"></div>
+    </div>
+    <div class="field"><label class="lbl">Endereço</label><input type="text" id="cfgEnd" placeholder="Endereço da empresa"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">🖼️</span> Logotipo</div>
+    <img id="logoPreview" class="settings-logo-preview" alt="Logo">
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="handleLogo(event)">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoInput').click()">📁 Escolher logo</button>
+      <button class="btn btn-danger btn-sm" id="removeLogo" style="display:none" onclick="removeLogo()">🗑 Remover</button>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-full" onclick="salvarConfig()">💾 Salvar Configurações</button>
+</div>
+
+<!-- ===================== MODAL RELATÓRIO ===================== -->
+<div class="modal-overlay" id="modalReport">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">📋 Relatório</div>
+      <button class="modal-close" onclick="closeModal('modalReport')">✕</button>
+    </div>
+    <div id="modalReportContent"></div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-success btn-sm" id="modalPdfBtn">📄 Gerar PDF</button>
+      <button class="btn btn-danger btn-sm" id="modalDelBtn">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
